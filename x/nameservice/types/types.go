@@ -25,5 +25,5 @@ func NewWhois() Whois {
 func (w Whois) String() string {
 	return strings.TrimSpace(fmt.Sprintf(`Owner: %s 
 	Value: %s 
-	Price: %s`, w.owner, w.value, w.price))
+	Price: %s`, w.Owner, w.Value, w.Price))
 }

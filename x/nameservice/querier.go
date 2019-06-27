@@ -61,7 +61,7 @@ func queryNames(ctx sdk.Context, req abci.RequestQuery, keeper Keeper) ([]byte, 
 	iterator := keeper.GetNamesIterator(ctx)
 
 	for ; iterator.Valid(); iterator.Next() {
-		nameList.append(nameList, string(iterator.Key()))
+		nameList = append(nameList, string(iterator.Key()))
 	}
 
 	res, err := codec.MarshalJSONIndent(keeper.cdc, nameList)

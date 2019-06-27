@@ -1,7 +1,7 @@
 package nameservice
 
 import (
-	"encoding/ascii85"
+	//"encoding/ascii85"
 	"github.com/cosmos/cosmos-sdk/codec"  // Tools to work with Cosmos encoding format, Amino
 	"github.com/cosmos/cosmos-sdk/x/bank" //Controls accounts and coin transfers
 
@@ -26,7 +26,7 @@ func NewKeeper(coinKeeper bank.Keeper, storeKey sdk.StoreKey, cdc *codec.Codec) 
 }
 
 //Sets the Whois interface metadata struct for a name
-func (k Keeper) SetWhois(ctx sdl.Context, name string, whois Whois){
+func (k Keeper) SetWhois(ctx sdk.Context, name string, whois Whois){
 	if whois.Owner.Empty(){
 		return
 	}

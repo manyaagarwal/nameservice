@@ -1,8 +1,8 @@
 package app
-import(
+
+import (
 	"encoding/json"
 	"os"
-	"strings"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
@@ -28,10 +28,13 @@ import(
 const appName = "nameservice"
 
 var (
+	// default home directories for the application CLI
 	DefaultCLIHome = os.ExpandEnv("$HOME/.nscli")
+
+	// DefaultNodeHome sets the folder where the applcation data and configuration will be stored
 	DefaultNodeHome = os.ExpandEnv("$HOME/.nsd")
 
-	//Module basic manager is in charge of setting up basic module elements
+	// ModuleBasicManager is in charge of setting up basic module elemnets
 	ModuleBasics = module.NewBasicManager(
 		genaccounts.AppModuleBasic{},
 		genutil.AppModuleBasic{},
@@ -42,54 +45,53 @@ var (
 		staking.AppModuleBasic{},
 		distr.AppModuleBasic{},
 		slashing.AppModuleBasic{},
-		)
+	)
 )
 
-//embedding baseapp in nameserviceapp
-type nameServiceApp struct {
-	*bam.BaseApp
-	cdc *codec.Codec
-
-	//Keys to access substores
-	keyMain *sdk.KVStoreKey
-	keyAccount *sdk.KVStoreKey
-	keyFeeCollection *sdk.KVStoreKey
-	keyStaking *sdk.KVStoreKey
-	tkeyStaking *sdk.TransientStoreKey
-	keyDistr *sdk.KVStoreKey
-	tkeyDistr *sdk.TransientStoreKey
-	keyNS *sdk.KVStoreKey
-	keyParams *sdk.KVStoreKey
-	tkeyParams *sdk.TransientStoreKey
-	keySlashing *sdk.KVStoreKey
-
-	//Keeper
-	accountKeeper auth.AccountKeeper
-	bankKeeper bank.Keeper
-	stakingKeeper staking.Keeper
-	slashingKeeper slashing.Keeper
-	distrKeeper distr.Keeper
-	feeCollectionKeeper auth.FeeCollectionKeeper
-	paramsKeeper params.Keeper
-	nsKeeper nameservice.Keeper
-
-	//Module Manager
-	mm *module.Manager
-}
-
-//Helper Function
+// MakeCodec generates the necessary codecs for Amino
 func MakeCodec() *codec.Codec {
 	var cdc = codec.New()
 	ModuleBasics.RegisterCodec(cdc)
-	sdk.RegisterCOdec(cdc)
+	sdk.RegisterCodec(cdc)
 	codec.RegisterCrypto(cdc)
 	return cdc
 }
 
-//Constructor Function
+type nameServiceApp struct {
+	*bam.BaseApp
+	cdc *codec.Codec
+
+	// Keys to access the substores
+	keyMain          *sdk.KVStoreKey
+	keyAccount       *sdk.KVStoreKey
+	keyFeeCollection *sdk.KVStoreKey
+	keyStaking       *sdk.KVStoreKey
+	tkeyStaking      *sdk.TransientStoreKey
+	keyDistr         *sdk.KVStoreKey
+	tkeyDistr        *sdk.TransientStoreKey
+	keyNS            *sdk.KVStoreKey
+	keyParams        *sdk.KVStoreKey
+	tkeyParams       *sdk.TransientStoreKey
+	keySlashing      *sdk.KVStoreKey
+
+	// Keepers
+	accountKeeper       auth.AccountKeeper
+	bankKeeper          bank.Keeper
+	stakingKeeper       staking.Keeper
+	slashingKeeper      slashing.Keeper
+	distrKeeper         distr.Keeper
+	feeCollectionKeeper auth.FeeCollectionKeeper
+	paramsKeeper        params.Keeper
+	nsKeeper            nameservice.Keeper
+
+	// Module Manager
+	mm *module.Manager
+}
+
+// NewNameServiceApp is a constructor function for nameServiceApp
 func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
-	//define top level codec
+	// First define the top level codec that will be shared by the different modules
 	cdc := MakeCodec()
 
 	// BaseApp handles interactions with Tendermint through the ABCI protocol
@@ -98,7 +100,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 	// Here you initialize your application with the store keys it requires
 	var app = &nameServiceApp{
 		BaseApp: bApp,
-		cdc: cdc,
+		cdc:     cdc,
 
 		keyMain:          sdk.NewKVStoreKey(bam.MainStoreKey),
 		keyAccount:       sdk.NewKVStoreKey(auth.StoreKey),
@@ -113,33 +115,34 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 		keySlashing:      sdk.NewKVStoreKey(slashing.StoreKey),
 	}
 
-	//The ParamsKeeper handles parameter storage for the application
-	app.paramsKeeper = params.NewKeeper(app.cdc, app.keyParams, app.tkeyParams, params.DefaultCodeSpace)
-	//Set Specific Subspace
+	// The ParamsKeeper handles parameter storage for the application
+	app.paramsKeeper = params.NewKeeper(app.cdc, app.keyParams, app.tkeyParams, params.DefaultCodespace)
+	// Set specific supspaces
 	authSubspace := app.paramsKeeper.Subspace(auth.DefaultParamspace)
-	bankSubspace := app.paramsKeeper.Subspace(bank.DefaultParamspace)
+	bankSupspace := app.paramsKeeper.Subspace(bank.DefaultParamspace)
 	stakingSubspace := app.paramsKeeper.Subspace(staking.DefaultParamspace)
 	distrSubspace := app.paramsKeeper.Subspace(distr.DefaultParamspace)
 	slashingSubspace := app.paramsKeeper.Subspace(slashing.DefaultParamspace)
 
-	//Account Keeper handles address -> account lookup
-	app.accountKeeper = auth.NewAccountKeeper (
+	// The AccountKeeper handles address -> account lookups
+	app.accountKeeper = auth.NewAccountKeeper(
 		app.cdc,
 		app.keyAccount,
 		authSubspace,
 		auth.ProtoBaseAccount,
 	)
 
-	//Bank Keeper allows to perform sdk.Coins transactions
-	app.bankKeeper = bank.NewBaseKeeper (
+	// The BankKeeper allows you perform sdk.Coins interactions
+	app.bankKeeper = bank.NewBaseKeeper(
 		app.accountKeeper,
-		bankSubspace,
+		bankSupspace,
 		bank.DefaultCodespace,
 	)
 
-	//FeeCollectionKeeper collects transaction fees & renders them to fee distribution model
+	// The FeeCollectionKeeper collects transaction fees and renders them to the fee distribution module
 	app.feeCollectionKeeper = auth.NewFeeCollectionKeeper(cdc, app.keyFeeCollection)
 
+	// The staking keeper
 	stakingKeeper := staking.NewKeeper(
 		app.cdc,
 		app.keyStaking,
@@ -159,7 +162,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 		distr.DefaultCodespace,
 	)
 
-	app.slashingKeeper = slashing.NewKeeper (
+	app.slashingKeeper = slashing.NewKeeper(
 		app.cdc,
 		app.keySlashing,
 		&stakingKeeper,
@@ -167,12 +170,12 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 		slashing.DefaultCodespace,
 	)
 
-	//register staking hooks
+	// register the staking hooks
+	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.stakingKeeper = *stakingKeeper.SetHooks(
 		staking.NewMultiStakingHooks(
 			app.distrKeeper.Hooks(),
-			app.slashingKeepr.Hooks(),
-		),
+			app.slashingKeeper.Hooks()),
 	)
 
 	// The NameserviceKeeper is the Keeper from the module for this tutorial
@@ -188,13 +191,13 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 		genutil.NewAppModule(app.accountKeeper, app.stakingKeeper, app.BaseApp.DeliverTx),
 		auth.NewAppModule(app.accountKeeper, app.feeCollectionKeeper),
 		bank.NewAppModule(app.bankKeeper, app.accountKeeper),
-		nameservice.NewAppModuke(app.nsKeeper, app.bankKeeper),
+		nameservice.NewAppModule(app.nsKeeper, app.bankKeeper),
 		distr.NewAppModule(app.distrKeeper),
 		slashing.NewAppModule(app.slashingKeeper, app.stakingKeeper),
 		staking.NewAppModule(app.stakingKeeper, app.feeCollectionKeeper, app.distrKeeper, app.accountKeeper),
 	)
 
-	app.mm.SetOrderBeginBlocker(distr.ModuleName, slashing.ModuleName)
+	app.mm.SetOrderBeginBlockers(distr.ModuleName, slashing.ModuleName)
 	app.mm.SetOrderEndBlockers(staking.ModuleName)
 
 	// Sets the order of Genesis - Order matters, genutil is to always come last
@@ -248,13 +251,14 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 	return app
 }
 
+// GenesisState represents chain state at the start of the chain. Any initial state (account balances) are stored here.
 type GenesisState map[string]json.RawMessage
 
 func NewDefaultGenesisState() GenesisState {
 	return ModuleBasics.DefaultGenesis()
 }
 
-func (app *nameServiceApp) InitChainer (ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+func (app *nameServiceApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 
 	err := app.cdc.UnmarshalJSON(req.AppStateBytes, &genesisState)
@@ -266,23 +270,22 @@ func (app *nameServiceApp) InitChainer (ctx sdk.Context, req abci.RequestInitCha
 }
 
 func (app *nameServiceApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	return app.mm.BeginBlock(ctx,req)
+	return app.mm.BeginBlock(ctx, req)
 }
-
-func (app *nameServiceApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock{
-	return app.mm.EndBlock(ctx,req)
+func (app *nameServiceApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	return app.mm.EndBlock(ctx, req)
 }
-
-func (app *nameServiceApp) LoadHeight(height int64) error{
+func (app *nameServiceApp) LoadHeight(height int64) error {
 	return app.LoadVersion(height, app.keyMain)
 }
 
-//______________________________________________________________________________________________________________________
+//_________________________________________________________
 
-func (app *nameServiceApp) ExportAppStateAndValidators(forZeroHeight bool, jailWhiteList []string) (appState json.RawMessage, validators []tmtypes.GenesisValidator, err error){
+func (app *nameServiceApp) ExportAppStateAndValidators(forZeroHeight bool, jailWhiteList []string,
+) (appState json.RawMessage, validators []tmtypes.GenesisValidator, err error) {
 
 	// as if they could withdraw from the start of the next block
-	ctx := app.NewContext(true, abci.Header{Height:app.LastBlockHeight()})
+	ctx := app.NewContext(true, abci.Header{Height: app.LastBlockHeight()})
 
 	genState := app.mm.ExportGenesis(ctx)
 	appState, err = codec.MarshalJSONIndent(app.cdc, genState)
@@ -291,5 +294,6 @@ func (app *nameServiceApp) ExportAppStateAndValidators(forZeroHeight bool, jailW
 	}
 
 	validators = staking.WriteValidators(ctx, app.stakingKeeper)
+
 	return appState, validators, nil
 }

@@ -12,9 +12,9 @@ func (r QueryResResolve) String() string {
 }
 
 //Query Result Payload for names query
-type QueryResName []string
+type QueryResNames []string
 
-func (n QueryResName) String() string {
+func (n QueryResNames) String() string {
 	return strings.Join(n[:] , "\n" )
 }
 

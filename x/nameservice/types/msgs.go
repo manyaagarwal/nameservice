@@ -14,7 +14,7 @@ type MsgSetName struct {
 }
 
 //Constructor function for NewMsgSetName
-func NewMsgStateName(name string, value string, owner sdk.AccAddress) MsgSetName {
+func NewMsgSetName(name string, value string, owner sdk.AccAddress) MsgSetName {
 	return MsgSetName{
 		Name: name,
 		Value: value,
@@ -28,7 +28,7 @@ func (msg MsgSetName) Type() string { return "set_name" }
 
 func (msg MsgSetName) ValidateBasic() sdk.Error {
 	if msg.Owner.Empty() {
-		return sdk.ErrInvalidAddress(msg.Owner.string())
+		return sdk.ErrInvalidAddress(msg.Owner.String())
 	}
 	if len(msg.Name) == 0 || len(msg.Value) == 0 {
 		return sdk.ErrUnknownRequest("Name and/or Value cannot be empty")
